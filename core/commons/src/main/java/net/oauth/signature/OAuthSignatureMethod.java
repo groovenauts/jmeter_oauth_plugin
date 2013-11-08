@@ -183,8 +183,19 @@ public abstract class OAuthSignatureMethod {
         }
         List<ComparableParameter> p = new ArrayList<ComparableParameter>(
                 parameters.size());
-        for (Map.Entry parameter : parameters) {
-            if (!"oauth_signature".equals(parameter.getKey())) {
+        // oauth_signatureの元となる文字列を接続対象のアプリの認証ロジックにあわせて変更します
+        for (Map.Entry<String, String> parameter : parameters) {
+            // oauth_signatureの元となる文字列に、以下の形式でhttpのbodyを含める必要があります
+            // body={JSON形式のデータ}
+            // JMeterのデフォルトでは、以下の形式のため変更します
+            // ={JSON形式のデータ}
+            if ("".equals(parameter.getKey())){
+                OAuth.Parameter body = new OAuth.Parameter("body", parameter.getValue());
+                p.add(new ComparableParameter(body));
+            }
+            // oauth_signatureの元となる文字列に含めてはいけない文字列を除外します
+            else if (!"oauth_signature".equals(parameter.getKey()) &&
+                !"oauth_version".equals(parameter.getKey()) && !"auth_token".equals(parameter.getKey())) {
                 p.add(new ComparableParameter(parameter));
             }
         }

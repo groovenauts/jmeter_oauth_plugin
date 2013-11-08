@@ -304,7 +304,16 @@ public class OAuthSampler extends HTTPSampler2 {
 			err.setSampleLabel("Error: " + url.toString()); //$NON-NLS-1$
 			return err;
 		} finally {
-            JOrphanUtils.closeQuietly(instream);
+			// HTTPリクエストを投げた後処理を行います
+			// 元々のApacheJMeter_oauth-v2.jarが古いバージョン(2.6以前)のJMeterにしか対応しておらず、
+			// バージョン2.7以降のJMeterで動作させた時に、バージョン2.7以降のJMeterには存在しないメソッドを呼んでいたため、修正しました
+			try {
+				if (instream != null) {
+					instream.close();
+				}
+			} catch (IOException ignored) {
+				log.error("socket close exeption");
+			}
 			if (httpMethod != null) {
 				httpMethod.releaseConnection();
 			}
@@ -333,9 +342,15 @@ public class OAuthSampler extends HTTPSampler2 {
 			return;
 
 		try {
-			httpMethod.addRequestHeader("Authorization", message //$NON-NLS-1$
-					.getAuthorizationHeader(null));
-
+			// HTTPリクエストのヘッダーにoauth用のパラメータを設定します
+			// 元々のApacheJMeter_oauth-v2.jarでは、Authorizationに設定しますが、
+			// 接続対象のアプリの認証ロジックにあわせて個別のパラメータで設定し、かつ不必要なパラメータは設定しないようにします
+			for(Map.Entry<String, String> e : message.getParameters()){
+				if(!e.getKey().equals("oauth_signature_method") &&
+					!e.getKey().equals("oauth_version") && !e.getKey().equals("")){
+					httpMethod.addRequestHeader(e.getKey(), e.getValue());
+				}
+			}
 		} catch (IOException e) {
 			log.error("Failed to set Authorization header: " + e.getMessage()); //$NON-NLS-1$
 		}
@@ -357,18 +372,16 @@ public class OAuthSampler extends HTTPSampler2 {
 		String form;
         
 		if (useAuthHeader) {    
-		    form = OAuth.formEncode(nonOAuthParams);
+            form = nonOAuthParams.get(0).getValue();
         } else {
         	form = OAuth.formEncode(message.getParameters());
         }
 
-        method.addRequestHeader(HEADER_CONTENT_TYPE, OAuth.FORM_ENCODED);
         method.addRequestHeader(HEADER_CONTENT_LENGTH, form.length() + ""); //$NON-NLS-1$
        
         if (method instanceof PostMethod || method instanceof PutMethod) {
 
-        	StringRequestEntity requestEntity = new StringRequestEntity(
-            		form, OAuth.FORM_ENCODED, OAuth.ENCODING);
+            StringRequestEntity requestEntity = new StringRequestEntity(form);
             
             ((EntityEnclosingMethod)method).setRequestEntity(requestEntity);
         } else {
