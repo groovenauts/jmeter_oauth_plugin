@@ -1,0 +1,12 @@
+.DS_Store
+
+# maven build dir
+target/
+
+# java class
+*.class
+
+# Package Files #
+*.jar
+*.war
+*.ear
