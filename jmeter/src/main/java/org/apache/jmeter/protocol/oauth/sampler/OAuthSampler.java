@@ -304,7 +304,16 @@ public class OAuthSampler extends HTTPSampler2 {
 			err.setSampleLabel("Error: " + url.toString()); //$NON-NLS-1$
 			return err;
 		} finally {
-            JOrphanUtils.closeQuietly(instream);
+                        // HTTPリクエストを投げた後処理を行います
+			// 元々のApacheJMeter_oauth-v2.jarが古いバージョン(2.6以前)のJMeterにしか対応しておらず、
+			// バージョン2.7以降のJMeterで動作させた時に、バージョン2.7以降のJMeterには存在しないメソッドを呼んでいたため、修正しました
+			try {
+				if (instream != null) {
+					instream.close();
+				}
+			} catch (IOException ignored) {
+				log.error("socket close exeption");
+			}
 			if (httpMethod != null) {
 				httpMethod.releaseConnection();
 			}
